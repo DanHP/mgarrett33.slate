@@ -1,5 +1,3 @@
-TODO:  ALL ACTIONS ARE MISSING!!!
-
 ## AccountService
 This is the schema definition for the Account service. It represents the properties for this service and has links to the list of accounts.
 
@@ -2022,6 +2020,75 @@ The manufacturer's system version.
 
 The system virtual serial number.
 
+### POST Action "Reset"
+
+Resets the computer system using one of the ResetType methods.
+
+Parameters:
+
+"**ResetType**" (string) with one of the following value(s):
+
+* On
+* ForceOff
+* ForceRestart
+* Nmi
+* PushPowerButton
+
+> example "Reset" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "ResetType": "On"
+}
+```
+
+### POST Action "PowerButton"
+
+Simulates pressing the power button. The PushType parameter simulates a quick button press or a press and hold operation. 
+
+Parameters:
+
+"**PushType**" (string) with one of the following value(s):
+
+* Press
+* PressAndHold
+
+> example "PowerButton" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "PushType": "Press"
+}
+```
+
+### POST Action "SystemReset"
+
+Resets the computer system using a cold boot operation.
+
+Parameters:
+
+"**ResetType**" (string) with the value **"ColdBoot"**
+
+> example "SystemReset" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "ResetType": "ColdBoot"
+}
+```
+
 ## EthernetInterface
 The schema definition of a simple Ethernet NIC resource.
 
@@ -2829,6 +2896,57 @@ This property indicates what the service will do to an event subscription after 
 **JSONPath**: `/SubscriptionRemovalTimeIntervalInMinutes` (read only integer)
 
 This is the minimum amount of time after the failed events that the service will wait before doing the SubscriptionRemovalAction.
+
+### POST Action "SubmitTestEvent"
+
+Causes iLO 4 to submit a test event to any subscribed event recievers. 
+
+Parameters:
+
+"**EventType**" (string) with one of the following value(s):
+
+* StatusChange
+* ResourceUpdated
+* ResourceAdded
+* ResourceRemoved
+* Alert
+
+"**EventID**" (string) - TODO - what makes sense here?
+
+"**EventTimestamp**" (date-time)
+
+"**Severity**" (string) with one of the following value(s):
+
+* OK
+* Warning
+* Critical
+
+"**Message**" (free form string)
+
+"**MessageID**" (a message defined in a message registry)
+
+"**MessageArgs**" (array of strings used to substitute into the MessageID tokens)
+
+"**OriginOfCondition**" (the uri of the resource associated with this event) - TODO - what makes sense here?
+
+> example "SubmitTestEvent" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "EventType": "StatusChange", 
+    "EventID": "<string>", 
+    "EventTimestamp": "<date-time>", 
+    "Severity": "OK", 
+    "Message": "<string>", 
+    "MessageID": "<string>", 
+    "MessageArgs": "<string>", 
+    "OriginOfCondition": "<string>"
+}
+```
 
 ## FwSwVersionInventory
 
@@ -6050,6 +6168,34 @@ Secondary key server port number. Set to null to clear the value.
 
 > example PATCH: {"SecondaryKeyServerPort": &lt;integer-value&gt;}
 
+### POST Action "TestESKMConnections"
+
+Test Enterprise Storage Key Manager connections.  TODO - need to describe this better -what's the outcome?
+
+> example "TestESKMConnections" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "ClearESKMLog"
+
+Clears the Enterprise Storage Key Manager log.
+
+> example "ClearESKMLog" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
 ## HpHttpsCert
 This is the schema definition for the X509 Certificate.
 
@@ -6094,6 +6240,61 @@ The date on which the certificate validity period ends.
 **JSONPath**: `/X509CertificateInformation/ValidNotBefore` (read only string)
 
 The date on which the certificate validity period begins.
+
+### POST Action "GenerateCSR"
+
+Causes iLO 4 to begin creation of a new certificate signing request. The action will return a GeneratingCertificate message while this process is underway. The process may take up to ten minutes. Upon completion, the new request is available upon GET to this same resource in the "CertificateSigningRequest" property. 
+
+Parameters:
+
+"**Country**" (string)
+
+"**State**" (string)
+
+"**City**" (string)
+
+"**OrgName**" (string)
+
+"**OrgUnit**" (string)
+
+"**CommonName**" (string)
+
+> example "GenerateCSR" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "Country": "<string>", 
+    "State": "<string>", 
+    "City": "<string>", 
+    "OrgName": "<string>", 
+    "OrgUnit": "<string>", 
+    "CommonName": "<string>"
+}
+```
+
+### POST Action "ImportCertificate"
+
+Imports a Trusted Certificate and iLO 4 is reset.
+
+Parameters:
+
+"**Certificate**" (The certificate as a base-64 string) - TODO correct?
+
+> example "ImportCertificate" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "Certificate": "<base-64 string>"
+}
+```
 
 ## HpMemory
 The schema definition for the properties of Memory DIMMs.
@@ -8354,17 +8555,24 @@ This is the URI of the Active Health System binary download.  This URI is not fi
 
 If successful, the response of the GET is a binary download which can be saved to a file.
 
-**Actions**
-
-### ClearLog
-
-**JSONPath**: `/Actions/#HpiLOActiveHealthSystem.ClearLog`
+### POST Action "ClearLog"
 
 Clears the Active Health System Log.
 
 <aside class="warning">
 When this action is invoked, iLO 4 will respond with "ResetRequired" and iLO 4 must be reset for the setting to take effect.
 </aside>
+
+
+> example "ClearLog" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
 
 ## HpiLODateTime
 The management processor date and time.
@@ -8787,11 +8995,31 @@ This property indicates the URI location a client my upload a firmware image dir
 
 **Actions**
 
-### InstallFromURI
+### POST Action "InstallFromURI"
 
-**JSONPath**: `Actions/#HpiLOFirmwareUpdate.InstallFromURI'
+Causes iLO 4 to GET and flash the firmware image indicated by FirmwareURI. 
 
-> TODO:  example
+Parameters:
+
+"**FirmwareURI**" (uri) the URI of the firmware image
+
+"**TPMOverrideFlag**" (boolean) with one of the following value(s): - TODO (is this really a boolean?
+
+* true
+* false
+
+> example "InstallFromURI" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "FirmwareURI": "<uri>", 
+    "TPMOverrideFlag": true
+}
+```
 
 ## HpiLOLicense
 
@@ -9078,6 +9306,86 @@ Virtual Media Privileges.
 iLO Configuration Privileges.
 
 > example PATCH: {"SSOsettings": {"UserPrivilege": {"iLOConfigPriv": true}}}
+
+### POST Action "ImportCertificate"
+
+Import an HPE Single Sign On Certificate.
+
+Parameters:
+
+"**CertType**" (string) with one of the following value(s):
+
+* DirectImportCert
+* ImportCertUri
+
+"**CertInput**" (The certificate as a base-64 string) - TODO correct?
+
+> example "ImportCertificate" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "CertType": "DirectImportCert", 
+    "CertInput": "<base-64 string>"
+}
+```
+
+### POST Action "ImportDNSName"
+
+Add DNS Name to the record list.
+
+Parameters:
+
+"**DNSName**" (string)
+
+> example "ImportDNSName" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "DNSName": "<string>"
+}
+```
+
+### POST Action "DeleteAllSSORecords"
+
+Delete all the Single Sign On records.
+
+> example "DeleteAllSSORecords" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "DeleteSSORecordbyNumber"
+
+Delete Single Sign On record by record number.
+
+Parameters:
+
+"**RecordNumber**" (integer) - TODO - is this really an integer?
+
+> example "DeleteSSORecordbyNumber" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "RecordNumber": "<integer>"
+}
+```
 
 ## HpiSCSISoftwareInitiator
 The schema definition of UEFI iSCSI Software Initiator boot configuration.
@@ -9472,6 +9780,20 @@ When the log is full, the overwrite policy is enforced.
 * `WrapsWhenFull`
 
 * `NeverOverwrites`
+
+### POST Action "ClearLog"
+
+Clears the Integrated Management Log or iLO Event Log depending upon the resource instance.
+
+> example "ClearLog" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
 
 ## Manager
 
@@ -10281,6 +10603,82 @@ This indicates the known state of the resource, such as if it is enabled.
 
 This is a universally unique identifier that software (for example, HP SIM) uses to uniquely identify this manager. The UUID is assigned when the system is manufactured.
 
+### POST Action "Reset"
+
+Resets iLO 4. iLO 4 will be unresponsive during the reset process and the client should expect to wait for up to a minute for functionality to be restored. 
+
+> example "Reset" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "ClearRestApiState"
+
+Clears the persistent state of the REST API. Some portions of the API may not be available until after the server reboots.
+
+> example "ClearRestApiState" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "iLOFunctionality"
+
+Specifies whether iLO functionality is available. The following settings are valid: Enabled (default)-The iLO network is available and communications with operating system drivers are active. Disabled-The iLO network and communications with operating system drivers are terminated when iLO Functionality is disabled. For ProLiant Gen8 servers only: To re-enable iLO functionality, disable iLO security with the system maintenance switch, and then use the iLO RBSU to set iLO Functionality to Enabled. For more information about using the system maintenance switch, see the Maintenance and Service Guide for your server model. For ProLiant Gen9 servers only: To re-enable iLO functionality, use the iLO 4 Configuration Utility (in the UEFI System Utilities) to set iLO Functionality to Enabled. For more information see the HP UEFI System Utilities User Guide. The action resets/reboots the manager. iLO functionality cannot be disabled on server blades.
+
+The "iLOFunctionality" action disables iLO 4's accessibility via the network and resets iLO 4. This should be used with caution as it will render iLO unable to respond to further network operations (including REST operations) until iLO 4 is re-enabled using the RBSU menu.
+
+
+> example "iLOFunctionality" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "ResetToFactoryDefaults"
+
+Resets the iLO to Factory Defaults.
+
+ResetToFactoryDefaults performs the following:
+
+* Removes Language Packs
+* Erases all customized settings
+* Removes user accounts and restores iLO 4's default username and password
+* Removes all certificates and user licenses
+* Restores iLO 4 network settings to defaults
+* Clears event logs
+* Resets iLO 4 upon completion
+
+
+Parameters:
+
+"**ResetType**" (string) with the value **"Default"**
+
+> example "ResetToFactoryDefaults" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "ResetType": "Default"
+}
+```
+
 ## ManagerAccount
 
 This represents a user account on the REST API service.
@@ -10846,6 +11244,32 @@ The Virtual Media port number.
 **JSONPath**: `/VirtualMedia/ProtocolEnabled` (read only boolean)
 
 Indicates whether Virtual Media is enabled for the manager.
+
+### POST Action "SendTestSyslog"
+
+> example "SendTestSyslog" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
+### POST Action "SendTestAlertMail"
+
+Sends test alert mail to configured AlertMail email address.
+
+> example "SendTestAlertMail" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
 
 ## Power
 This is the schema definition for the Power Metrics.  It represents the properties for Power Consumption and Power Limiting.
@@ -12395,6 +12819,20 @@ The user profile name. Enter an alphanumeric string of 1 to 32 characters.
 
 > example PATCH: {"Users": [{"SecurityName": "&lt;string-value&gt;"}|null, ...]}
 
+### POST Action "SendSNMPTestAlert"
+
+Causes iLO 4 to send a test SNMP trap to registered trap destinations. 
+
+> example "SendSNMPTestAlert" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
+
 ## Thermal
 The schema definition for the Thermal Metrics. It represents the properties for temperature and cooling.
 
@@ -13079,4 +13517,38 @@ If set to true, the server will boot to this image on the next server reboot. Th
 **JSONPath**: `/WriteProtected` (read only boolean)
 
 Indicates whether the virtual media is protected against write operations.
+
+### POST Action "InsertVirtualMedia"
+
+Causes iLO 4 to mount a virtual media image from the specified URI.
+
+Parameters:
+
+"**Image**" (uri)
+
+> example "InsertVirtualMedia" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{
+    "Image": "<uri-of-virtual-media-image>" 
+}
+```
+
+### POST Action "EjectVirtualMedia"
+
+Causes iLO 4 to unmount a virtual media image.
+
+> example "EjectVirtualMedia" action:
+
+```
+POST <target-uri>
+Content-Type: application/json
+OData-Version: 4.0
+
+{}
+```
 

@@ -1,106 +1,147 @@
 # Example Use Cases
 
-## Changing BIOS Settings
-### About BIOS
+NOTE:  The examples in this section use a pseudo-code syntax for clarity.  JSON pointer syntax is used to indicate specific properties.
+
+## BIOS Settings
+
+
+### Reading BIOS Current Settings
 
 To GET the current BIOS configuration:
 
-The iLO RESTful API enables a UEFI BIOS configuration. BIOS is a system-level entity on current
-architectures. The link to the BIOS configuration is from the computer system node object.
+The iLO RESTful API enables UEFI BIOS configuration. The link to the BIOS configuration is from the computer system object.
 
-`SystemCollection = GET /rest/v1/Systems`
+```
+for each compute_node in collection("/redfish/v1/systems/"):
+    Bios_Current_Settings = GET compute_node#/Oem/Hp/BIOS/@odata.id
+```
 
-`For each item in SystemCollection.links.Member # this is a collection`
+The results looks something like this:
 
-`System = GET item.href`
+>result:
 
-`BIOS = GET System.Oem.Hp.links.BIOS.href`
+```json
+{
+  "AcpiRootBridgePxm": "Enabled",
+  "AcpiSlit": "Enabled",
+  "AdjSecPrefetch": "Enabled",
+  "AdminEmail": "",
+  "AdminName": "",
+  "AdminOtherInfo": "",
+  "AdminPassword": null,
+  "AdminPhone": "",
+  "AdvancedMemProtection": "AdvancedEcc",
+  "AsrStatus": "Enabled",
+  "AsrTimeoutMinutes": "10",
+  "AssetTagProtection": "Unlocked",
+  "AttributeRegistry": "HpBiosAttributeRegistryU15.1.1.00",
+  "AutoPowerOn": "RestoreLastState",
+  "BootMode": "Uefi",
+  "BootOrderPolicy": "RetryIndefinitely",
+  "ChannelInterleaving": "Enabled",
+  "CollabPowerControl": "Enabled",
+  "ConsistentDevNaming": "LomsOnly",
+  "CustomPostMessage": "",
+  "DaylightSavingsTime": "Disabled",
+  "more...": true
+}
+```
 
-![GitHub Logo](/images/uefi_bios_settings.png)
+###Changing Pending Settings and understanding "SettingsResults"
+The current configuration object for BIOS is read only. This object contains a link to a Settings resource that you can perform a PATCH operation on.  This is the "pending settings." If you GET the Settings resource, you will see that it allows PATCH commands. You can change properties and then PATCH them back to the Settings URI. Changes to pending settings do not take effect until the server is reset. Before the server is reset, the current and pending settings are independently available. After the server is reset, the pending settings are applied and you can view any errors in the SettingsResults property on the main object.
 
-The result of the `GET` BIOS operation is in a flat object. You cannot use `PATCH` to update a
-property value. You can only perform `GET` operations on this resource.
-### Reading BIOS Defalults example
-The BIOS current configuration object contains a link to a separate read-only object, the
-`BaseConfigs,` which list the BIOS default settings. To `GET` the BIOS `BaseConfigs` resource:
+```
+for each compute_node in collection("/redfish/v1/systems/"):
+    Bios_Current_Settings = GET compute_node#/Oem/Hp/BIOS/@odata.id
+	Bios_Pending_Settings_URI = Bios_Current_Settings#/links/Settings/href
+    Bios_Pending_Settings = GET Bios_Pending_Settings_URI
 
-`SystemCollection = GET /rest/v1/Systems`
+	Bios_Pending_Settings#/AdminName = "new admin name"
 
-`For each item in SystemCollection.links.Member # this is a collection`
+	PATCH Bios_Pending_Settings_URI=Bios_Pending_Settings
 
-`System = GET item.href`
+...reboot later...
+```
 
-`BIOS 23`
+There are benefits to handling BIOS settings in this way:
 
-`BIOS = GET System.Oem.Hp.links.BIOS.href`
+* Enables offline components (for example, BIOS) to process changes to settings in a deferred
+manner.
+* Allows current and pending values to remain available for review until the offline component
+processes the pending settings.
+* Avoids the need for complex job queues.
 
-`BaseConfig = GET BIOS.links.BaseConfigs.href`
 
-![GitHub Logo](/images/base_config.png)
+### Reading BIOS Defaults example
+The BIOS current configuration object contains a link to a separate read-only object, the `BaseConfigs`, which list the BIOS default settings. To get the BIOS `BaseConfigs` resource:
 
-Notice that `BaseConfigs` contains an array of default sets (or base configuration sets). Each
-base config set contains a list of BIOS properties and their default values. The default base config
-set contains the BIOS manufacturing defaults. It is possible for `BaseConfigs` to contain other
-sets, like `default.user` for user custom defaults.
+```
+for each compute_node in collection("/redfish/v1/systems/"):
+    Bios_Current_Settings = GET compute_node#/Oem/Hp/BIOS/@odata.id
+    BaseConfigs = GET Bios_Current_Settings#/links/BaseConfigs/href
+```
+
+The results looks something like this:
+
+>result:
+
+```json
+{
+  "BaseConfigs": [
+    {
+      "default": {
+        "AcpiRootBridgePxm": "Enabled",
+        "AcpiSlit": "Enabled",
+        "AdjSecPrefetch": "Enabled",
+        "AdminEmail": "",
+        "AdminName": "",
+        "AdminOtherInfo": "",
+        "AdminPassword": "",
+        "AdminPhone": "",
+        "AdvancedMemProtection": "AdvancedEcc",
+        "AsrStatus": "Enabled",
+        "AsrTimeoutMinutes": "10",
+        "AssetTagProtection": "Unlocked",
+        "AutoPowerOn": "RestoreLastState",
+        "BootMode": "Uefi",
+        "BootOrderPolicy": "RetryIndefinitely",
+        "ChannelInterleaving": "Enabled",
+        "CollabPowerControl": "Enabled",
+        "ConsistentDevNaming": "LomsOnly",
+        "CustomPostMessage": "",
+        "DaylightSavingsTime": "Disabled"
+  "more...": true
+}
+```
+
+Notice that `BaseConfigs` contains an array of default sets (or base configuration sets). Each base config set contains a list of BIOS properties and their default values. The default base config set contains the BIOS manufacturing defaults. It is possible for `BaseConfigs` to contain other sets, like `default.user` for user custom defaults.
+
 ### BIOS resources and attribute registry overview
-The BIOS resources are formatted differently than most other resources. BIOS resources do
-conform to a schema type as all objects do. However, BIOS settings vary widely across server
-types and BIOS revisions, so it is extremely difficult to publish a standard schema defining all
-the possible BIOS setting properties. Furthermore, it is not possible to communicate some of the
-advanced settings such as inter-setting dependencies, and menu structure in json-schema.
-Therefore, BIOS uses an *Attribute Registry.*
+The BIOS resources are formatted differently than most other resources. BIOS resources do conform to a schema type as all objects do. However, BIOS settings vary widely across server types and BIOS revisions, so it is  extremely difficult to publish a standard schema defining all the possible BIOS setting properties. Furthermore, it is not possible to communicate some of the advanced settings such as inter-setting dependencies, and menu structure in json-schema. Therefore, BIOS uses an *Attribute Registry.*
+
 ### Attribute registry example
-When you GET the BIOS configuration object, observe that it still has the basic structure including
-a `Type.` However, it also has a property called `AttributeRegistry`. This property points to
-a registry file. This file contains a set of data for each BIOS setting (for example, `PowerProfile`)
-including menu structure information, any dependencies with other settings, and other information.
+The BIOS Current Configuration resource has a property called `AttributeRegistry`. This property indicates the name and version of a registry file that defines the properties in the BIOS configuration.  It also includes information about interdependencies between settings.
 
 
-To find the BIOS Attribute registry resource:
+>To find the BIOS Attribute registry resource:
 
-`SystemCollection = GET /rest/v1/Systems`
+```
+for each compute_node in collection("/redfish/v1/systems/"):
+    Bios_Current_Settings = GET compute_node#/Oem/Hp/BIOS/@odata.id
 
-`For each item in SystemCollection.links.Member # this is a collection`
+	Attribute_Registry_Name = Bios_Current_Settings#/AttributeRegistry
 
-`System = GET item.href`
+	for each registry in collection("/redfish/v1/registries/"):
+		If registry#/Schema beginswith Attribute_Registry_Name:
+			for each language in registry#/Location`
+				If language/Language == "en": # or choose another`
+					Attribute_Registry = GET language/Uri/extref
+```
 
-`BIOS = GET System.Oem.Hp.links.BIOS.href`
-
-`AttributeRegistryName = the value of the "AttributeRegistry" property in BIOS object`
-
-`RegistryCollection = GET /rest/v1/Registries`
-
-`For each item in RegistryCollection.links.Member # this is a collection`
-
-`Registry = GET item.href`
-
-`If Registry.Schema beginswith AttributeRegistryName`
-
-`For each language in Registry.Location`
-
-`If language.Language == "en" # or choose another`
-
-`AttributeRegistry = GET language.Uri.extref`
-
-Due to their size, BIOS Attribute Registries are compressed JSON resources (gzip), so the
-returned HTTP headers indicate a content-encoding of `gzip.` The REST client will need to
-decompress the resource. This is done automatically when using a web client (like the Postman
+Due to their size, BIOS Attribute Registries are compressed JSON resources (gzip), so the returned HTTP headers indicate a content-encoding of `gzip.` The REST client will need to decompress the resource. This is done automatically in many web clients (like the Postman
 plugin).
 
-![GitHub Logo](/images/bios_attribute_registries.png)
-
-### BIOS attributes
-List of BIOS attributes (settings) and their meta-data, including:
-- Type of each BIOS attribute (enum, string, numeric, or Boolean).
-- Possible values for enum type attributes.
-- Display strings (localized to the registry language) for the attributes and their possible values.
-- Help text and warning text (localized).
-- Location and display order information, including menu hierarchy for an attribute.
-BIOS 25
-- Value limits, including maximum, minimum, and step values for numeric attributes, and
-minimum and maximum character lengths, as well as regular expressions for string attributes.
-- And other meta-data.
-### BIOS attribute registries
+### BIOS attribute registry structure
 The BIOS attribute registries contains three top-level arrays:
 
 - **Menus:** Array containing the BIOS attributes menus and their hierarchy. This can be used
@@ -112,20 +153,30 @@ value or its `ReadOnly` property based on the value of another BIOS setting.
 - **BaseConfigs:** Array containing a list of default manufacturing settings of BIOS attributes.
 This is equivalent to reading the BaseConfigs resource and parsing the object named
 `default.`
-### BIOS administrator password considerations
-If you have enabled a BIOS administrator password, you must supply extra information upon a
-BIOS Settings `PATCH` or `PUT` operation. The `PATCH` or `PUT` operation must include an extra HTTP
-header:
 
-- Administrator password: Set `AdminPassword` to the new password and `OldAdminPassword`
-to the old password.
-- Power On password: Set `PowerOnPassword` to the new password and
+### BIOS attributes
+Each BIOS attribute in the attribute registry includes:
+
+- Type of each BIOS attribute (enum, string, numeric, or Boolean).
+- Possible values for enum type attributes.
+- Display strings (localized to the registry language) for the attributes and their possible values.
+- Help text and warning text (localized).
+- Location and display order information, including menu hierarchy for an attribute.
+BIOS 25
+- Value limits, including maximum, minimum, and step values for numeric attributes, and
+minimum and maximum character lengths, as well as regular expressions for string attributes.
+- And other meta-data.
+
+### Setting or Changing the BIOS Administrator and Setup Password
+To change the Administrator and Power On passwords, you must change two properties for each password in the Pending Settings resource:
+* **Administrator password**: Set `AdminPassword` to the new password and `OldAdminPassword` to the old password.
+* **Power On password**: Set `PowerOnPassword` to the new password and
 `OldPowerOnPassword` with the old password.
 
 If you the old password is not set, you must use a blank string ("") for the old password property.
 
-1. Iterate through `/rest/v1/Systems` and choose a member ComputerSystem.
-  * Result = `{ilo-ip-address}/rest/v1/Systems/1/BIOS`
+1. Iterate through `/redfish/v1/Systems` and choose a member ComputerSystem.
+  * Result = `{ilo-ip-address}/redfish/v1/Systems/1/BIOS`
 2. Find a link in the `Oem/Hp/links` called `Bios` and note the `BiosURI`.
 3. `GET BiosObj` from `BiosURI` and note that it only allows `GET` (this is the current settings).
 4. Find a link in `BiosObj` called `Settings` and note this URI.
@@ -142,7 +193,7 @@ To change the Administrator and Power On passwords, you must change two properti
 
 | HTTP Header Name | Value |
 | ------------- | ------------- |
-| X-HPRESTFULAPI-AuthToken | A string consisting of the uppercase SHA256 hex digest of the administrator password. In Python this is `hashlib.sha256(bios_password.encode()).hexdigest().upper().` |
+| `X-HPRESTFULAPI-AuthToken` | A string consisting of the uppercase SHA256 hex digest of the administrator password. In Python this is `hashlib.sha256(bios_password.encode()).hexdigest().upper().` |
 
 
 ### Example reset all BIOS and boot order settings to factory defaults
@@ -280,51 +331,32 @@ child resource of type `HpiSCSISoftwareInitiator` that allows PATCH operations.
 2. Inspect the existing `iSCSIBootSources` array. You need to inspect the
 `iSCSIBootAttemptInstance` property of each object to find the boot sources you are
 prefer to change.
-Existing example resource:
 
+>Existing example resource:
 
-    `{`
-
-                `"iSCSIBootSources": [`
-
-                  `{`
-
-                        `"iSCSIBootAttemptInstance": 1,`
-
-                        `...`
-
-                  `},`
-
-                  `{`
-
-                        `"iSCSIBootAttemptInstance": 2,`
-
-                        `...`
-
-                  `},`
-
-                  `{`
-
-                        `"iSCSIBootAttemptInstance": 0,`
-
-                        `...`
-
-                  `},`
-
-                  `{`
-
-                        `"iSCSIBootAttemptInstance": 0,`
-
-                        `...`
-
-                        `}`
-
-                        `],`
-
-                        `...`
-
-     `}`
-
+```
+{
+    "iSCSIBootSources": [
+        {
+             "iSCSIBootAttemptInstance": 1,
+             ...
+        },
+        {
+             "iSCSIBootAttemptInstance": 2,
+             ...
+        },
+        {
+             "iSCSIBootAttemptInstance": 0,
+             ...
+        },
+        {
+             "iSCSIBootAttemptInstance": 0,
+             ...
+        }
+    ],
+    ...
+}
+```
 
 3. Create a new JSON object with the iSCSIBootSources property.
   *  Use an empty object in the position of instance 1 to indicate that it should not be modified.
@@ -334,34 +366,24 @@ modified—all omitted properties will remain unmodified.
 containing all the new settings, and most importantly, a new unique value of
 iSCSIBootAttemptInstance.
 
-     `{`
+```
+{
+	"iSCSIBootSources": [
+		{}, 
+		{
+			"iSCSIConnectRetry": 2
+		}, 
+		{
+			"iSCSIBootAttemptInstance": 3,
+			"iSCSIBootAttemptName": "Name",
+			"iSCSINicSource": "NicBootX"
+			...
+		}, 
+		{}
+	]
+}
+```
 
-     `"iSCSIBootSources": [`
-     `{},`
-
-     `{`
-
-     `"iSCSIConnectRetry": 2`
-
-     `},`
-
-     `{`
-
-     `"iSCSIBootAttemptInstance": 3,`
-
-     `"iSCSIBootAttemptName": "Name",`
-
-     `"iSCSINicSource": "NicBootX",`
-
-     `...`
-
-     `},`
-
-     `{}`
-
-     `]`
-
-     `}`
 4. Change the iSCSI software initiator settings.
   * `PATCH {ilo-address}/rest/v1/Systems/1/BIOS/iSCSI/Settings` 
 
